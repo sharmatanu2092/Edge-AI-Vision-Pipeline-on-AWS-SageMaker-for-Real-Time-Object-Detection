@@ -1,0 +1,144 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Infrastructure for the Edge AI Vision Pipeline dissertation project —
+  S3 buckets, least-privilege IAM roles, and endpoint autoscaling
+  resources. Training and inference compute (SageMaker jobs/endpoints)
+  are provisioned via the Python scripts in training/, optimization/, and
+  deployment/, not by this template — this template covers the persistent
+  infrastructure those scripts assume already exists.
+
+Parameters:
+  ProjectPrefix:
+    Type: String
+    Default: industrial-vision
+    Description: Prefix applied to all resource names for this project
+
+Resources:
+
+  # ── Storage ──────────────────────────────────────────────────────────────
+
+  DatasetBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${ProjectPrefix}-dataset-${AWS::AccountId}"
+      # Versioning retained so an accidental overwrite of an annotated
+      # RecordIO shard does not silently corrupt the reproducibility
+      # guarantees discussed in docs/evaluation_and_results.md.
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  ModelArtifactBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${ProjectPrefix}-model-artifacts-${AWS::AccountId}"
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  AsyncInferenceResultsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${ProjectPrefix}-async-results-${AWS::AccountId}"
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireAfter90Days
+            Status: Enabled
+            ExpirationInDays: 90   # Bulk-review outputs — not a permanent archive
+
+  # ── IAM ──────────────────────────────────────────────────────────────────
+
+  SageMakerExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectPrefix}-sagemaker-execution-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: sagemaker.amazonaws.com
+            Action: sts:AssumeRole
+      # Least-privilege: scoped to this project's specific buckets, not
+      # AmazonS3FullAccess — a training job has no legitimate reason to
+      # read or write buckets outside this project's own storage.
+      Policies:
+        - PolicyName: ProjectScopedS3Access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt DatasetBucket.Arn
+                  - !Sub "${DatasetBucket.Arn}/*"
+                  - !GetAtt ModelArtifactBucket.Arn
+                  - !Sub "${ModelArtifactBucket.Arn}/*"
+                  - !GetAtt AsyncInferenceResultsBucket.Arn
+                  - !Sub "${AsyncInferenceResultsBucket.Arn}/*"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
+
+  GreengrassCoreDeviceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectPrefix}-greengrass-core-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: credentials.iot.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: EdgeArtifactReadAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource:
+                  - !Sub "${ModelArtifactBucket.Arn}/*"
+
+  # ── Monitoring ───────────────────────────────────────────────────────────
+
+  EndpointLatencyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ProjectPrefix}-endpoint-latency-slo-breach"
+      AlarmDescription: >
+        Fires if the real-time endpoint's model latency exceeds the 40ms
+        SLO referenced in deployment/inference_endpoint.py, independent of
+        whether autoscaling has already been triggered by invocation rate.
+      Namespace: AWS/SageMaker
+      MetricName: ModelLatency
+      Statistic: Average
+      Period: 60
+      EvaluationPeriods: 3
+      Threshold: 40000   # microseconds
+      ComparisonOperator: GreaterThanThreshold
+
+Outputs:
+  DatasetBucketName:
+    Value: !Ref DatasetBucket
+  ModelArtifactBucketName:
+    Value: !Ref ModelArtifactBucket
+  SageMakerExecutionRoleArn:
+    Value: !GetAtt SageMakerExecutionRole.Arn
+  GreengrassCoreDeviceRoleArn:
+    Value: !GetAtt GreengrassCoreDeviceRole.Arn
