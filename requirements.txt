@@ -1,0 +1,36 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  Project dependencies
+#
+#  Note: mxnet and gluoncv are pinned to their last stable releases prior
+#  to Apache MXNet's retirement (Sept 2023, Attic transfer Feb 2024) — see
+#  docs/model_architecture.md's "Framework Longevity" note. Pinned
+#  explicitly since the upstream packages are no longer maintained.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Deep learning framework
+mxnet-cu112==1.9.1
+gluoncv==0.10.5
+
+# AWS SDKs
+sagemaker==2.219.0
+boto3==1.34.100
+
+# Computer vision / data pipeline
+opencv-python-headless==4.9.0.80
+numpy==1.23.5
+Pillow==10.3.0
+
+# Edge deployment
+dlr==1.10.0
+
+# Data handling
+pandas==2.1.4
+
+# Evaluation / analysis
+scikit-learn==1.3.2
+matplotlib==3.8.4
+seaborn==0.13.2
+
+# Notebooks
+jupyter==1.0.0
+ipykernel==6.29.4
