@@ -2,7 +2,7 @@
 
 # Edge AI Vision Pipeline on AWS SageMaker for Real-Time Object Detection
 
-**An MSc dissertation project: an end-to-end YOLOv3 object detection pipeline — from data governance through training, evaluation, and edge-optimised deployment — applied to industrial safety and asset monitoring.**
+**An end-to-end YOLOv3 object detection pipeline — from data governance through training, evaluation, and edge-optimised deployment — applied to industrial safety and asset monitoring.**
 
 [![Institution](https://img.shields.io/badge/Institution-Liverpool%20John%20Moores%20University-a78bfa?style=flat-square&labelColor=16141f)](.)
 [![Programme](https://img.shields.io/badge/Programme-MSc%20Embedded%20Systems%20%26%20IC%20Design-a78bfa?style=flat-square&labelColor=16141f)](.)
@@ -11,7 +11,6 @@
 [![Latency](https://img.shields.io/badge/Inference%20Latency-%E2%88%9240%25-2dd4bf?style=flat-square&labelColor=16141f)](.)
 [![License](https://img.shields.io/badge/License-MIT-948da8?style=flat-square&labelColor=16141f)](LICENSE)
 
-[Dashboard](dashboard/index.html) · [Methodology](docs/methodology.md) · [Model Architecture](docs/model_architecture.md) · [Optimisation & Deployment](docs/optimization_and_deployment.md) · [Results](docs/evaluation_and_results.md) · [Ethics](docs/ethics_and_data_governance.md) · [PhD Research Trajectory](docs/phd_research_trajectory.md)
 
 </div>
 
