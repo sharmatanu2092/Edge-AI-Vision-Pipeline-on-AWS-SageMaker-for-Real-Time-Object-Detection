@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Research Console — Edge AI Vision Pipeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* ── Palette — "research lab notebook" dark theme ────────────────── */
+    --bg:            #0d0c14;
+    --panel:         #16141f;
+    --panel-alt:     #131019;
+    --border:        #2a2636;
+    --border-bright: #3d3752;
+
+    --violet:        #a78bfa;
+    --violet-dim:    #4c3d73;
+    --teal:          #2dd4bf;
+    --teal-dim:      #164e46;
+    --amber:         #fbbf24;
+    --amber-dim:     #5c4818;
+    --rose:          #fb7185;
+    --rose-dim:      #5c2632;
+    --success:       #34d399;
+    --success-dim:   #16543f;
+
+    --text:          #f1eef9;
+    --text-muted:    #948da8;
+    --text-faint:    #57516c;
+
+    --font-display: 'Source Serif 4', Georgia, serif;
+    --font-body:    'Inter', system-ui, sans-serif;
+    --font-mono:    'IBM Plex Mono', ui-monospace, monospace;
+
+    --radius: 8px;
+    --radius-lg: 12px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background:
+      radial-gradient(ellipse 1100px 550px at 10% -5%, rgba(167,139,250,0.07), transparent),
+      radial-gradient(ellipse 900px 500px at 95% 15%, rgba(45,212,191,0.05), transparent),
+      var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+
+  .wrap { max-width: 1440px; margin: 0 auto; padding: 26px 30px 52px; }
+
+  /* ── Top bar ─────────────────────────────────────────────────────────── */
+  .topbar {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    padding-bottom: 22px; border-bottom: 1px solid var(--border); margin-bottom: 24px; gap: 20px;
+  }
+  .brand h1 {
+    font-family: var(--font-display); font-size: 22px; font-weight: 600;
+    margin: 0 0 4px; letter-spacing: 0.01em;
+  }
+  .brand .subtitle { font-size: 12.5px; color: var(--text-muted); }
+  .brand .badge-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .inst-badge {
+    font-family: var(--font-mono); font-size: 10.5px; padding: 3px 10px;
+    border-radius: 20px; border: 1px solid var(--border-bright); color: var(--text-muted);
+  }
+  .topbar-right { text-align: right; flex-shrink: 0; }
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-family: var(--font-mono); font-size: 11px; color: var(--violet);
+    background: var(--violet-dim); border: 1px solid rgba(167,139,250,0.35);
+    padding: 5px 12px; border-radius: 20px; margin-bottom: 8px;
+  }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--violet); animation: pulse 2.4s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .run-meta { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
+  .run-meta b { color: var(--text); font-weight: 500; }
+
+  /* ── KPI row ─────────────────────────────────────────────────────────── */
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
+  .kpi-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    padding: 16px 18px; position: relative; overflow: hidden;
+  }
+  .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--kpi-accent, var(--violet)); }
+  .kpi-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); margin-bottom: 9px; font-weight: 600; }
+  .kpi-value-row { display: flex; align-items: baseline; gap: 10px; }
+  .kpi-value { font-family: var(--font-mono); font-size: 25px; font-weight: 600; color: var(--text); }
+  .kpi-arrow { font-size: 15px; }
+  .kpi-baseline { font-size: 11px; color: var(--text-faint); font-family: var(--font-mono); margin-top: 6px; }
+  .kpi-delta { font-size: 11.5px; margin-top: 4px; font-family: var(--font-mono); font-weight: 600; }
+  .kpi-delta.pos { color: var(--success); }
+
+  /* ── Panels ──────────────────────────────────────────────────────────── */
+  .panel {
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    padding: 18px 18px 16px;
+  }
+  .panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .panel-title {
+    font-family: var(--font-display); font-size: 14px; font-weight: 600; color: var(--text);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .panel-title .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .panel-note { font-size: 10.5px; color: var(--text-faint); font-family: var(--font-mono); }
+
+  /* ── Main content grid ──────────────────────────────────────────────── */
+  .content-grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .left-col, .right-col { display: flex; flex-direction: column; gap: 16px; }
+
+  /* ── Detection demo (SVG illustrative scene) ─────────────────────────── */
+  .scene-frame {
+    background: var(--panel-alt); border: 1px solid var(--border); border-radius: var(--radius);
+    overflow: hidden; position: relative;
+  }
+  .scene-legend { display: flex; gap: 14px; margin-top: 12px; flex-wrap: wrap; }
+  .scene-legend .item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); }
+  .scene-legend .swatch { width: 12px; height: 12px; border-radius: 3px; border: 1.5px solid; }
+
+  /* ── Confusion matrix heatmap ─────────────────────────────────────────── */
+  .confusion-grid {
+    display: grid;
+    grid-template-columns: 90px repeat(6, 1fr);
+    gap: 3px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+  }
+  .confusion-grid .hdr { color: var(--text-faint); font-size: 9px; padding: 6px 2px; text-align: center; writing-mode: vertical-rl; text-orientation: mixed; }
+  .confusion-grid .rowlabel { color: var(--text-muted); padding: 8px 6px; display: flex; align-items: center; font-size: 9.5px; }
+  .confusion-grid .cell {
+    aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+    border-radius: 3px; color: #0d0c14; font-weight: 600;
+  }
+  .confusion-grid .cell.zero { background: var(--panel-alt); color: var(--text-faint); font-weight: 400; }
+  .confusion-grid .cell.bg-col { background: var(--panel-alt); color: var(--rose); border: 1px dashed var(--rose-dim); font-weight: 600; }
+
+  /* ── Charts ──────────────────────────────────────────────────────────── */
+  .chart-card { height: 260px; display: flex; flex-direction: column; }
+  .chart-card canvas { flex: 1; width: 100% !important; height: 100% !important; }
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .charts-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+  /* ── Ablation bars (custom, not chart.js — clearer for incremental steps) */
+  .ablation-list { display: flex; flex-direction: column; gap: 12px; }
+  .ablation-row { display: grid; grid-template-columns: 150px 1fr 60px; align-items: center; gap: 10px; }
+  .ablation-label { font-size: 11.5px; color: var(--text); font-family: var(--font-mono); }
+  .ablation-track { background: var(--panel-alt); border-radius: 4px; height: 20px; position: relative; overflow: hidden; }
+  .ablation-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--violet-dim), var(--violet)); display: flex; align-items: center; }
+  .ablation-fill.final { background: linear-gradient(90deg, var(--teal-dim), var(--teal)); }
+  .ablation-value { font-family: var(--font-mono); font-size: 12px; text-align: right; color: var(--text); font-weight: 600; }
+  .ablation-delta { font-family: var(--font-mono); font-size: 10px; color: var(--success); padding-left: 4px; }
+
+  /* ── PhD callout ─────────────────────────────────────────────────────── */
+  .phd-callout {
+    background: linear-gradient(135deg, rgba(167,139,250,0.08), rgba(45,212,191,0.05));
+    border: 1px solid var(--border-bright); border-radius: var(--radius-lg);
+    padding: 18px 20px; margin-top: 16px;
+  }
+  .phd-callout h3 { font-family: var(--font-display); font-size: 15px; margin: 0 0 10px; color: var(--text); }
+  .phd-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 10px; }
+  .phd-item { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; }
+  .phd-item b { color: var(--violet); font-weight: 600; display: block; margin-bottom: 3px; font-family: var(--font-mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; }
+
+  /* ── Footer ──────────────────────────────────────────────────────────── */
+  footer {
+    margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 11.5px; color: var(--text-faint); flex-wrap: wrap; gap: 10px;
+  }
+  .stack-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+  .stack-pill { font-family: var(--font-mono); font-size: 10px; padding: 3px 9px; border-radius: 12px; border: 1px solid var(--border-bright); color: var(--text-muted); }
+
+  @media (max-width: 1000px) {
+    .kpi-row { grid-template-columns: repeat(2, 1fr); }
+    .content-grid { grid-template-columns: 1fr; }
+    .charts-row, .charts-row-3 { grid-template-columns: 1fr; }
+    .phd-grid { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+  :focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ── Top bar ─────────────────────────────────────────────────────── -->
+  <div class="topbar">
+    <div class="brand">
+      <h1>Research Console</h1>
+      <div class="subtitle">Edge AI Vision Pipeline on AWS SageMaker for Real-Time Object Detection</div>
+      <div class="badge-row">
+        <span class="inst-badge">Liverpool John Moores University</span>
+        <span class="inst-badge">MSc Embedded Systems &amp; IC Design Dissertation</span>
+        <span class="inst-badge">YOLOv3 · GluonCV · MXNet</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="status-pill"><span class="status-dot"></span> RESEARCH BUILD</div>
+      <div class="run-meta">Final pipeline · 3-seed mean<br>Test set: <b>1,440</b> images</div>
+    </div>
+  </div>
+
+  <!-- ── KPI row ─────────────────────────────────────────────────────── -->
+  <div class="kpi-row">
+    <div class="kpi-card" style="--kpi-accent: var(--violet)">
+      <div class="kpi-label">mAP @ 0.5 IoU</div>
+      <div class="kpi-value-row"><span class="kpi-value" id="kpiMap">—</span></div>
+      <div class="kpi-baseline">baseline 71.2% ± 0.6</div>
+      <div class="kpi-delta pos">▲ +13.8% relative</div>
+    </div>
+    <div class="kpi-card" style="--kpi-accent: var(--teal)">
+      <div class="kpi-label">Precision @ 0.5</div>
+      <div class="kpi-value-row"><span class="kpi-value" id="kpiPrecision">—</span></div>
+      <div class="kpi-baseline">baseline 76.4% ± 0.7</div>
+      <div class="kpi-delta pos">▲ +15.0% relative</div>
+    </div>
+    <div class="kpi-card" style="--kpi-accent: var(--amber)">
+      <div class="kpi-label">Inference Latency (p50)</div>
+      <div class="kpi-value-row"><span class="kpi-value" id="kpiLatency">—</span><span style="font-size:13px;color:var(--text-muted)">ms</span></div>
+      <div class="kpi-baseline">baseline 46.3ms (FP32, batch=1)</div>
+      <div class="kpi-delta pos">▼ 40.0% reduction</div>
+    </div>
+    <div class="kpi-card" style="--kpi-accent: var(--success)">
+      <div class="kpi-label">Throughput</div>
+      <div class="kpi-value-row"><span class="kpi-value" id="kpiFps">—</span><span style="font-size:13px;color:var(--text-muted)">FPS</span></div>
+      <div class="kpi-baseline">baseline 21.6 FPS</div>
+      <div class="kpi-delta pos">▲ +66.7%</div>
+    </div>
+  </div>
+
+  <!-- ── Main content: detection demo + confusion matrix | PR + per-class -->
+  <div class="content-grid">
+
+    <div class="left-col">
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title"><span class="dot" style="background: var(--violet)"></span>Illustrative Detection Output</div>
+          <div class="panel-note">synthetic scene · not source footage</div>
+        </div>
+        <div class="scene-frame" id="sceneFrame"></div>
+        <div class="scene-legend">
+          <div class="item"><span class="swatch" style="background: rgba(52,211,153,0.15); border-color: var(--success);"></span>PPE compliant</div>
+          <div class="item"><span class="swatch" style="background: rgba(251,113,133,0.15); border-color: var(--rose);"></span>PPE violation</div>
+          <div class="item"><span class="swatch" style="background: rgba(167,139,250,0.15); border-color: var(--violet);"></span>Forklift</div>
+          <div class="item"><span class="swatch" style="background: rgba(148,141,168,0.15); border-color: var(--text-muted);"></span>Fixed machinery</div>
+          <div class="item"><span class="swatch" style="background: rgba(251,191,36,0.15); border-color: var(--amber); border-style: dashed;"></span>Restricted zone</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title"><span class="dot" style="background: var(--rose)"></span>Confusion Matrix — Test Set</div>
+          <div class="panel-note">rows: ground truth</div>
+        </div>
+        <div class="confusion-grid" id="confusionGrid"></div>
+      </div>
+    </div>
+
+    <div class="right-col">
+      <div class="panel chart-card">
+        <div class="panel-head"><div class="panel-title"><span class="dot" style="background: var(--teal)"></span>Precision–Recall Curve</div></div>
+        <canvas id="prChart"></canvas>
+      </div>
+      <div class="panel chart-card">
+        <div class="panel-head"><div class="panel-title"><span class="dot" style="background: var(--violet)"></span>Per-Class Average Precision</div></div>
+        <canvas id="apChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Ablation + training curves + latency ────────────────────────── -->
+  <div class="charts-row">
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title"><span class="dot" style="background: var(--success)"></span>Ablation Study — mAP@0.5</div>
+        <div class="panel-note">answers RQ3</div>
+      </div>
+      <div class="ablation-list" id="ablationList"></div>
+    </div>
+    <div class="panel chart-card">
+      <div class="panel-head"><div class="panel-title"><span class="dot" style="background: var(--amber)"></span>Training Loss Curves</div></div>
+      <canvas id="lossChart"></canvas>
+    </div>
+  </div>
+
+  <div class="charts-row-3">
+    <div class="panel chart-card">
+      <div class="panel-head"><div class="panel-title"><span class="dot" style="background: var(--teal)"></span>Latency vs. Batch Size</div></div>
+      <canvas id="latencyChart"></canvas>
+    </div>
+    <div class="panel chart-card">
+      <div class="panel-head"><div class="panel-title"><span class="dot" style="background: var(--violet)"></span>Class Distribution</div></div>
+      <canvas id="classDistChart"></canvas>
+    </div>
+    <div class="panel chart-card">
+      <div class="panel-head"><div class="panel-title"><span class="dot" style="background: var(--amber)"></span>Quantisation Accuracy Cost</div></div>
+      <canvas id="quantChart"></canvas>
+    </div>
+  </div>
+
+  <!-- ── PhD trajectory callout ──────────────────────────────────────── -->
+  <div class="phd-callout">
+    <h3>Where This Research Goes Next</h3>
+    <div class="phd-grid">
+      <div class="phd-item"><b>Domain shift</b>Continual adaptation for detectors deployed across sites with differing camera geometry and lighting, without catastrophic forgetting.</div>
+      <div class="phd-item"><b>Split inference</b>Edge–cloud collaborative architectures partitioning the backbone adaptively by network/thermal state.</div>
+      <div class="phd-item"><b>Uncertainty quantification</b>Calibrated confidence for the violation→compliant error mode surfaced in the confusion matrix above.</div>
+      <div class="phd-item"><b>Green AI</b>Characterising the accuracy–latency–energy Pareto frontier for 24/7 multi-camera edge inference.</div>
+      <div class="phd-item"><b>Federated learning</b>Privacy-preserving multi-site training without centralising CCTV-derived imagery.</div>
+      <div class="phd-item"><b>Explainability</b>Auditable detection decisions for regulatory/compliance contexts, not just qualitative saliency inspection.</div>
+    </div>
+  </div>
+
+  <footer>
+    <div>Research Console · Illustrative rendering of dissertation results · <a href="../README.md" style="color: var(--text-muted);">View repository</a></div>
+    <div class="stack-pills">
+      <span class="stack-pill">Python</span>
+      <span class="stack-pill">YOLOv3</span>
+      <span class="stack-pill">GluonCV</span>
+      <span class="stack-pill">MXNet</span>
+      <span class="stack-pill">SageMaker</span>
+      <span class="stack-pill">OpenCV</span>
+      <span class="stack-pill">SageMaker Neo</span>
+      <span class="stack-pill">Greengrass V2</span>
+    </div>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  function countUpText(el, target, suffix, duration) {
+    duration = duration || 900;
+    var startTime = null;
+    function step(ts) {
+      if (!startTime) startTime = ts;
+      var progress = Math.min((ts - startTime) / duration, 1);
+      var eased = 1 - Math.pow(1 - progress, 3);
+      var value = target * eased;
+      el.textContent = value.toFixed(1) + (suffix || "");
+      if (progress < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  countUpText(document.getElementById("kpiMap"), 81.0, "%");
+  countUpText(document.getElementById("kpiPrecision"), 87.9, "%");
+  countUpText(document.getElementById("kpiLatency"), 27.8, "");
+  countUpText(document.getElementById("kpiFps"), 36.0, "");
+
+  // ── Illustrative SVG scene (abstract, not real photography) ─────────
+  var sceneSvg = `
+    <svg viewBox="0 0 600 320" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
+      <defs>
+        <linearGradient id="floorGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#1b1826"/>
+          <stop offset="100%" stop-color="#0f0d16"/>
+        </linearGradient>
+      </defs>
+      <rect width="600" height="320" fill="url(#floorGrad)"/>
+      <!-- floor perspective lines -->
+      <g stroke="#2a2636" stroke-width="1">
+        <line x1="0" y1="220" x2="600" y2="220"/>
+        <line x1="0" y1="260" x2="600" y2="260"/>
+        <line x1="0" y1="300" x2="600" y2="300"/>
+        <line x1="150" y1="180" x2="60" y2="320"/>
+        <line x1="450" y1="180" x2="540" y2="320"/>
+      </g>
+      <!-- restricted zone marker (floor) -->
+      <rect x="380" y="240" width="150" height="60" fill="none" stroke="#fbbf24" stroke-width="2" stroke-dasharray="6,4" rx="4"/>
+      <text x="455" y="270" fill="#fbbf24" font-family="IBM Plex Mono, monospace" font-size="9" text-anchor="middle">restricted_zone_marker</text>
+
+      <!-- fixed machinery -->
+      <g>
+        <rect x="40" y="130" width="90" height="110" rx="4" fill="#948da8" fill-opacity="0.12" stroke="#948da8" stroke-width="1.5"/>
+        <rect x="55" y="150" width="60" height="70" fill="#232030"/>
+        <text x="85" y="122" fill="#948da8" font-family="IBM Plex Mono, monospace" font-size="9" text-anchor="middle">fixed_machinery 0.91</text>
+      </g>
+
+      <!-- forklift -->
+      <g>
+        <rect x="230" y="190" width="110" height="70" rx="4" fill="#a78bfa" fill-opacity="0.12" stroke="#a78bfa" stroke-width="1.5"/>
+        <rect x="245" y="205" width="55" height="35" fill="#2b2440"/>
+        <circle cx="255" cy="255" r="10" fill="#1a1626"/>
+        <circle cx="320" cy="255" r="10" fill="#1a1626"/>
+        <text x="285" y="182" fill="#a78bfa" font-family="IBM Plex Mono, monospace" font-size="9" text-anchor="middle">forklift 0.96</text>
+      </g>
+
+      <!-- worker: compliant -->
+      <g>
+        <rect x="180" y="120" width="34" height="90" rx="3" fill="#34d399" fill-opacity="0.15" stroke="#34d399" stroke-width="1.5"/>
+        <circle cx="197" cy="132" r="9" fill="#34d399" fill-opacity="0.5"/>
+        <rect x="188" y="145" width="18" height="45" rx="3" fill="#233a30"/>
+        <text x="197" y="112" fill="#34d399" font-family="IBM Plex Mono, monospace" font-size="8.5" text-anchor="middle">compliant 0.94</text>
+      </g>
+
+      <!-- worker: violation -->
+      <g>
+        <rect x="470" y="130" width="32" height="85" rx="3" fill="#fb7185" fill-opacity="0.15" stroke="#fb7185" stroke-width="1.5"/>
+        <circle cx="486" cy="141" r="8.5" fill="#fb7185" fill-opacity="0.4"/>
+        <rect x="478" y="153" width="16" height="42" rx="3" fill="#3a2328"/>
+        <text x="486" y="122" fill="#fb7185" font-family="IBM Plex Mono, monospace" font-size="8.5" text-anchor="middle">violation 0.88</text>
+      </g>
+
+      <!-- second compliant worker, partially near machinery (occlusion case) -->
+      <g>
+        <rect x="120" y="150" width="30" height="80" rx="3" fill="#34d399" fill-opacity="0.15" stroke="#34d399" stroke-width="1.5" stroke-dasharray="3,2"/>
+        <text x="135" y="144" fill="#34d399" font-family="IBM Plex Mono, monospace" font-size="8" text-anchor="middle">compliant 0.79</text>
+      </g>
+    </svg>
+  `;
+  document.getElementById("sceneFrame").innerHTML = sceneSvg;
+
+  // ── Confusion matrix (data from docs/evaluation_and_results.md) ──────
+  var CLASSES = ["compliant", "violation", "forklift", "machinery", "zone-marker"];
+  var MATRIX = [
+    [1842, 61, 4, 2, 0, 187],
+    [58, 812, 2, 3, 0, 171],
+    [3, 1, 921, 24, 0, 71],
+    [1, 2, 19, 683, 3, 108],
+    [0, 0, 0, 8, 129, 71],
+  ];
+  var COLS = CLASSES.concat(["missed"]);
+
+  function cellColor(value, rowMax, isMissed) {
+    if (value === 0) return null;
+    var intensity = Math.min(value / rowMax, 1);
+    if (isMissed) {
+      return "rgba(251,113,133," + (0.15 + intensity * 0.55) + ")";
+    }
+    return "rgba(45,212,191," + (0.12 + intensity * 0.72) + ")";
+  }
+
+  var grid = document.getElementById("confusionGrid");
+  var html = '<div></div>';
+  COLS.forEach(function (c) { html += '<div class="hdr">' + c + '</div>'; });
+
+  MATRIX.forEach(function (row, i) {
+    html += '<div class="rowlabel">' + CLASSES[i] + '</div>';
+    var rowMax = Math.max.apply(null, row.slice(0, 5).concat([1]));
+    row.forEach(function (val, j) {
+      var isMissed = j === 5;
+      var bg = cellColor(val, isMissed ? Math.max.apply(null, row) : rowMax, isMissed);
+      var cls = "cell" + (val === 0 ? " zero" : "") + (isMissed ? " bg-col" : "");
+      var style = bg ? ' style="background:' + bg + '"' : "";
+      html += '<div class="' + cls + '"' + style + '>' + val + "</div>";
+    });
+  });
+  grid.innerHTML = html;
+
+  // ── Chart.js defaults ─────────────────────────────────────────────────
+  Chart.defaults.color = "#948da8";
+  Chart.defaults.font.family = "'IBM Plex Mono', monospace";
+  Chart.defaults.font.size = 10.5;
+  Chart.defaults.borderColor = "#2a2636";
+
+  // ── PR curve: baseline vs final ──────────────────────────────────────
+  new Chart(document.getElementById("prChart"), {
+    type: "line",
+    data: {
+      labels: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+      datasets: [
+        {
+          label: "Baseline",
+          data: [95, 93, 90, 87, 83, 78, 72, 63, 51, 34, 12],
+          borderColor: "#57516c", backgroundColor: "transparent",
+          borderDash: [4, 3], tension: 0.35, pointRadius: 2,
+        },
+        {
+          label: "Final pipeline",
+          data: [97, 96, 94.5, 92, 89.5, 86, 81, 74, 63, 44, 15],
+          borderColor: "#a78bfa", backgroundColor: "rgba(167,139,250,0.08)",
+          fill: true, tension: 0.35, pointRadius: 3,
+        },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: "bottom", labels: { boxWidth: 10, padding: 12 } } },
+      scales: {
+        x: { title: { display: true, text: "Recall", color: "#57516c" }, grid: { color: "#2a2636" } },
+        y: { title: { display: true, text: "Precision (%)", color: "#57516c" }, grid: { color: "#2a2636" } },
+      },
+    },
+  });
+
+  // ── Per-class AP ──────────────────────────────────────────────────────
+  new Chart(document.getElementById("apChart"), {
+    type: "bar",
+    data: {
+      labels: ["Compliant", "Violation", "Forklift", "Machinery", "Zone-marker"],
+      datasets: [
+        { label: "Baseline AP", data: [79.1, 68.4, 82.7, 74.0, 51.8], backgroundColor: "#3d3752", borderRadius: 4, maxBarThickness: 22 },
+        { label: "Final AP", data: [88.6, 81.2, 90.1, 83.5, 61.6], backgroundColor: "#a78bfa", borderRadius: 4, maxBarThickness: 22 },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: "bottom", labels: { boxWidth: 10, padding: 12 } } },
+      scales: { y: { beginAtZero: true, max: 100, grid: { color: "#2a2636" } }, x: { grid: { display: false } } },
+    },
+  });
+
+  // ── Training loss curves ─────────────────────────────────────────────
+  var epochs = Array.from({length: 19}, function (_, i) { return i * 10; });
+  new Chart(document.getElementById("lossChart"), {
+    type: "line",
+    data: {
+      labels: epochs,
+      datasets: [
+        { label: "Objectness", data: [4.8,3.1,2.2,1.7,1.4,1.15,0.98,0.87,0.79,0.73,0.68,0.64,0.61,0.58,0.56,0.55,0.54,0.53,0.53], borderColor: "#a78bfa", pointRadius: 0, tension: 0.3 },
+        { label: "Box regression", data: [3.9,2.6,1.9,1.5,1.25,1.05,0.91,0.81,0.74,0.68,0.64,0.60,0.57,0.55,0.53,0.52,0.51,0.50,0.50], borderColor: "#2dd4bf", pointRadius: 0, tension: 0.3 },
+        { label: "Classification", data: [3.2,2.0,1.4,1.05,0.85,0.71,0.62,0.55,0.50,0.46,0.43,0.41,0.39,0.38,0.37,0.36,0.35,0.35,0.34], borderColor: "#fbbf24", pointRadius: 0, tension: 0.3 },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: "bottom", labels: { boxWidth: 10, padding: 12 } } },
+      scales: {
+        x: { title: { display: true, text: "Epoch", color: "#57516c" }, grid: { display: false } },
+        y: { title: { display: true, text: "Loss", color: "#57516c" }, grid: { color: "#2a2636" } },
+      },
+    },
+  });
+
+  // ── Latency vs batch size ─────────────────────────────────────────────
+  new Chart(document.getElementById("latencyChart"), {
+    type: "line",
+    data: {
+      labels: ["1", "2", "4", "8", "16"],
+      datasets: [
+        { label: "Uncompiled FP32", data: [46.3, 44.1, 41.8, 39.2, 38.0], borderColor: "#57516c", borderDash: [4,3], tension: 0.3 },
+        { label: "Neo-compiled INT8", data: [30.9, 29.4, 28.5, 27.8, 27.5], borderColor: "#2dd4bf", backgroundColor: "rgba(45,212,191,0.08)", fill: true, tension: 0.3 },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: "bottom", labels: { boxWidth: 10, padding: 12 } } },
+      scales: {
+        x: { title: { display: true, text: "Batch size", color: "#57516c" }, grid: { display: false } },
+        y: { title: { display: true, text: "ms/frame", color: "#57516c" }, grid: { color: "#2a2636" } },
+      },
+    },
+  });
+
+  // ── Class distribution donut ─────────────────────────────────────────
+  new Chart(document.getElementById("classDistChart"), {
+    type: "doughnut",
+    data: {
+      labels: ["Compliant (38.4%)", "Violation (21.7%)", "Forklift (19.6%)", "Machinery (16.1%)", "Zone-marker (4.2%)"],
+      datasets: [{
+        data: [38.4, 21.7, 19.6, 16.1, 4.2],
+        backgroundColor: ["#34d399", "#fb7185", "#a78bfa", "#948da8", "#fbbf24"],
+        borderColor: "#16141f", borderWidth: 2,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: "62%",
+      plugins: { legend: { position: "bottom", labels: { boxWidth: 9, padding: 8, font: { size: 9.5 } } } },
+    },
+  });
+
+  // ── Quantisation accuracy cost ────────────────────────────────────────
+  new Chart(document.getElementById("quantChart"), {
+    type: "bar",
+    data: {
+      labels: ["FP32 (unquantised)", "INT8 (quantised)"],
+      datasets: [{
+        label: "mAP@0.5 (%)",
+        data: [81.0, 80.1],
+        backgroundColor: ["#a78bfa", "#fbbf24"],
+        borderRadius: 4, maxBarThickness: 60,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      indexAxis: "y",
+      plugins: { legend: { display: false } },
+      scales: { x: { min: 75, max: 84, grid: { color: "#2a2636" } }, y: { grid: { display: false } } },
+    },
+  });
+
+  // ── Ablation study bars (custom HTML, not chart.js) ──────────────────
+  var ablationData = [
+    { label: "[1] Baseline", value: 71.2, delta: null },
+    { label: "[2] + Anchors", value: 76.9, delta: 5.7 },
+    { label: "[3] + Augment.", value: 79.4, delta: 2.5 },
+    { label: "[4] Final (HPO)", value: 81.0, delta: 1.6, final: true },
+  ];
+  var maxVal = 85;
+  var listEl = document.getElementById("ablationList");
+  ablationData.forEach(function (row) {
+    var pct = (row.value / maxVal) * 100;
+    var div = document.createElement("div");
+    div.className = "ablation-row";
+    div.innerHTML =
+      '<div class="ablation-label">' + row.label + '</div>' +
+      '<div class="ablation-track"><div class="ablation-fill' + (row.final ? ' final' : '') + '" style="width:' + pct + '%"></div></div>' +
+      '<div class="ablation-value">' + row.value.toFixed(1) + '%' + (row.delta ? '<div class="ablation-delta">+' + row.delta.toFixed(1) + '</div>' : '') + '</div>';
+    listEl.appendChild(div);
+  });
+})();
+</script>
+</body>
+</html>
