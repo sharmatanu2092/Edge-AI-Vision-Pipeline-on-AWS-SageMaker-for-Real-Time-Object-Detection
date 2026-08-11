@@ -19,7 +19,7 @@
 
 ## Abstract
 
-Manual CCTV monitoring for industrial safety compliance — personal protective equipment (PPE) checks, restricted-zone intrusion, vehicle-pedestrian conflict — does not scale, and its detection latency is bounded by human attention span, not sensor capability. This dissertation designs, trains, evaluates, and deploys a real-time object detection pipeline that automates this monitoring task end-to-end: a YOLOv3 (Darknet-53) detector fine-tuned via GluonCV/Apache MXNet on a curated industrial imagery dataset, trained and tuned on AWS SageMaker, and optimised for deployment at both cloud and edge endpoints.
+Manual CCTV monitoring for industrial safety compliance personal protective equipment (PPE) checks, restricted-zone intrusion, vehicle-pedestrian conflict — does not scale, and its detection latency is bounded by human attention span, not sensor capability. This dissertation designs, trains, evaluates, and deploys a real-time object detection pipeline that automates this monitoring task end-to-end: a YOLOv3 (Darknet-53) detector fine-tuned via GluonCV/Apache MXNet on a curated industrial imagery dataset, trained and tuned on AWS SageMaker, and optimised for deployment at both cloud and edge endpoints.
 
 Against a naive transfer-learning baseline, the final pipeline improves detection **precision by 15.0% (relative)** and reduces **inference latency by 40%**, through a combination of anchor re-clustering, domain-specific augmentation, Bayesian hyperparameter optimisation, and post-training INT8 quantisation via SageMaker Neo. The project is scoped and documented as a piece of applied ML infrastructure research, not a model-only exercise: data governance and ethics, experimental rigour (multi-seed evaluation, bootstrapped confidence intervals, ablation analysis), and production deployment concerns (autoscaling, drift monitoring, edge compilation) are treated as first-class parts of the contribution.
 
@@ -260,4 +260,4 @@ MIT — see [LICENSE](LICENSE)
 
 **Tanu Sharma** · [github.com/sharmatanu2092](https://github.com/sharmatanu2092)
 
-*MSc Embedded Systems and IC Design dissertation, Liverpool John Moores University.*
+
