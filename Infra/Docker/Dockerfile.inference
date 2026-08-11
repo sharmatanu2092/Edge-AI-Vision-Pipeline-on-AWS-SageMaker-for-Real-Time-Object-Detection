@@ -1,0 +1,32 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  Dockerfile.inference
+#
+#  Custom inference container extending the AWS Deep Learning Container
+#  for MXNet, with GluonCV and the project's inference dependencies added.
+#  Used as the base for both the real-time and asynchronous SageMaker
+#  endpoints (deployment/inference_endpoint.py,
+#  deployment/async_video_inference.py).
+# ─────────────────────────────────────────────────────────────────────────────
+
+FROM 763104351884.dkr.ecr.eu-west-2.amazonaws.com/mxnet-inference:1.9.1-gpu-py38
+
+# GluonCV — note this pins a version predating MXNet's retirement (Sept
+# 2023 / Attic transfer Feb 2024, see docs/model_architecture.md's
+# "Framework Longevity" note); pinned explicitly rather than left floating,
+# since the upstream package is no longer actively maintained.
+RUN pip install --no-cache-dir \
+    gluoncv==0.10.5 \
+    opencv-python-headless==4.9.0.80 \
+    numpy==1.23.5
+
+# Neo-compiled model inference requires the DLR (Deep Learning Runtime)
+# for consistency between the cloud endpoint container and the edge
+# Greengrass component's runtime (deployment/greengrass_edge_deploy.py).
+RUN pip install --no-cache-dir dlr==1.10.0
+
+COPY inference_handler.py /opt/ml/code/inference_handler.py
+
+ENV SAGEMAKER_PROGRAM=inference_handler.py
+ENV SAGEMAKER_SUBMIT_DIRECTORY=/opt/ml/code
+
+WORKDIR /opt/ml/code
